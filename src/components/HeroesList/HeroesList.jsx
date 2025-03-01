@@ -1,80 +1,39 @@
-import { useHttp } from "../../hooks/http.hook";
-import { useEffect, useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useCallback, useMemo } from "react";
+import { useSelector } from "react-redux";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
-import { createSelector } from "reselect";
 
-import // fetchHeroes,
-// heroesFetching,
-// heroesFetched,
-// heroesFetchingError,
-// heroDeleted,
-"../../actions";
+import { useGetHeroesQuery, useDeleteHeroMutation } from "../../api/apiSlice";
 
-import {
-  heroesFetching,
-  heroesFetched,
-  heroesFetchingError,
-  heroDeleted,
-  fetchHeroes,
-  // selectAll,
-} from "./HeroesSlice";
 import HeroesListItem from "../heroesListItem/HeroesListItem";
 import Spinner from "../spinner/Spinner";
 
 import "./heroesList.scss";
-// import filters from "../../reducers/filters";
-// import heroes from "../../reducers/heroes";
-import { filteredHeroesSelector } from "./HeroesSlice";
 
 const HeroesList = () => {
-  // используем библиотеку createSelector для оптимизации, т.к. хук useSelector вызывает много рендеров
-  // думает, что каждый раз в state что-то изменилось и выполняет рендер даже если ничего не менялось
-  // поэтому с помощью библиотеки мемоизируем состояние
-  // const filteredHeroesSelector = createSelector(
-  //   (state) => state.filter.activeFilter,
-  //   // (state) => state.heroes.heroes,
-  //   selectAll,
-  //   (filter, heroes) => {
-  //     // heroes возьмутся из рез-та работы SelectAll
-  //     if (filter === "all") {
-  //       return heroes;
-  //     } else {
-  //       return heroes.filter((item) => item.element === filter);
-  //     }
-  //   }
-  // );
-  const filteredHeroes = useSelector(filteredHeroesSelector);
+  const { data: heroes = [], isLoading, isError } = useGetHeroesQuery();
 
-  const { heroesLoadingStatus } = useSelector((state) => state.heroes);
-  const dispatch = useDispatch();
-  const { request } = useHttp();
+  const [deleteHero] = useDeleteHeroMutation();
 
-  useEffect(() => {
-    // dispatch(heroesFetching());
-    // request("http://localhost:3001/heroes")
-    //   .then((data) => dispatch(heroesFetched(data)))
-    //   .catch(() => dispatch(heroesFetchingError()));
+  const activeFilter = useSelector((state) => state.filters.activeFilter);
 
-    // dispatch(fetchHeroes(request)); // для thunk
-    dispatch(fetchHeroes()); // для createAsyncThunk
+  const filteredHeroes = useMemo(() => {
+    const filteredHeroes = heroes.slice();
+
+    if (activeFilter === "all") {
+      return filteredHeroes;
+    } else {
+      return filteredHeroes.filter((item) => item.element === activeFilter);
+    }
+  }, [heroes, activeFilter]);
+
+  const onDelete = useCallback((id) => {
+    deleteHero(id);
     // eslint-disable-next-line
   }, []);
 
-  const onDelete = useCallback(
-    (id) => {
-      request(`http://localhost:3001/heroes/${id}`, "DELETE")
-        .then((data) => console.log(data, "Deleted"))
-        .then(dispatch(heroDeleted(id)))
-        .catch((err) => console.log(err));
-      // eslint-disable-next-line
-    },
-    [request]
-  );
-
-  if (heroesLoadingStatus === "loading") {
+  if (isLoading) {
     return <Spinner />;
-  } else if (heroesLoadingStatus === "error") {
+  } else if (isError) {
     return <h5 className="text-center mt-5">Ошибка загрузки</h5>;
   }
 
